@@ -25,34 +25,36 @@ void fast(const std::string& name) {
 	osyncstream(cout) << name << endl;
 }
 
-void action(const vector<promise<bool>>& v) {
-
+void thread1(promise<void> isA1Ready) {
+	slow("A1");
+	isA1Ready.set_value();
 }
 
-void thread1(promise<bool>&& Promise) {
-	fast("C2");
-	Promise.set_value(true);
-}
-
-void thread2(future<bool>& fut) {
-	fut.get();
+void thread2() {
+	slow("C2");
 	fast("D2");
 }
 
-void thread3() {
-
+void thread3(future<void> isA1Ready) {
+	fast("A2");
+	fast("C1");
+	isA1Ready.get();
+	fast("B");
+	fast("D1");
 }
 
 void work() {
-
-	auto t1 = chrono::steady_clock::now();
-
-	promise<bool> pr1;
-	future<bool> fut1 = pr1.get_future();
+	promise<void> pra;
+	future<void> futa = pra.get_future();
 
 	future<void> a[2];
-	a[0] = async(launch::async, thread1, move(pr1));
-	a[1] = async(launch::async, thread2, ref(fut1));
+
+	auto t1 = chrono::steady_clock::now();
+	a[0] = async(launch::async, thread1, move(pra));
+	a[1] = async(launch::async, thread2);
+
+	// in main, so it is not waiting still
+	thread3(move(futa));
 
 	for (auto& x : a) {
 		x.wait();
@@ -60,8 +62,8 @@ void work() {
 
 	auto t2 = chrono::steady_clock::now();
 
-	cout << chrono::duration<double>(t2 - t1) << endl;
 	cout << "The work is done!" << endl;
+	cout << "Time : " << chrono::duration<double>(t2 - t1) << " seconds" << endl;
 }
 
 int main() {
